@@ -86,6 +86,7 @@ kernel.yama.ptrace_scope=1
 kernel.perf_event_paranoid=2
 EOF
 
+rm -f /etc/systemd/network/en.network
 mkdir -p /etc/systemd/network
 cat <<EOF > /etc/systemd/network/en.network
 [Match]
@@ -93,22 +94,41 @@ Name=en*
 
 [Network]
 DHCP=ipv4
+EOF
 
-# [DHCPv4]
-# UseMTU=true
+
+rm -f /etc/systemd/network/eth.network
+mkdir -p /etc/systemd/network
+cat <<EOF > /etc/systemd/network/eth.network
+[Match]
+Name=eth*
+
+[Network]
+DHCP=ipv4
 EOF
 
 sysctl -p /etc/sysctl.d/gcp.conf
+
+systemctl daemon-reload
+systectl restart systemd-networkd
 {{ if isContainerDEnabled .CRI -}}
 systemctl enable containerd && systemctl restart containerd
 {{- else -}}
 systemctl enable docker && systemctl restart docker
 {{ end -}}
-
-reboot
 {{ end -}}
-
 
 {{ range $_, $unit := .Units -}}
 systemctl enable '{{ $unit.Name }}' && systemctl restart '{{ $unit.Name }}'
 {{ end }}
+
+
+{{ if .Bootstrap }}
+test -f /do-not-reboot
+MUST_REBOOT=$?
+touch /do-not-reboot
+if [[ $MUST_REBOOT == "1" ]]
+then
+    echo reboot
+fi
+{{ end -}}
