@@ -86,12 +86,26 @@ kernel.yama.ptrace_scope=1
 kernel.perf_event_paranoid=2
 EOF
 
+mkdir -p /etc/systemd/network
+cat <<EOF > /etc/systemd/network/en.network
+[Match]
+Name=en*
+
+[Network]
+DHCP=ipv4
+
+# [DHCPv4]
+# UseMTU=true
+EOF
+
 sysctl -p /etc/sysctl.d/gcp.conf
 {{ if isContainerDEnabled .CRI -}}
 systemctl enable containerd && systemctl restart containerd
 {{- else -}}
 systemctl enable docker && systemctl restart docker
 {{ end -}}
+
+reboot
 {{ end -}}
 
 
